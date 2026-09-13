@@ -5,18 +5,18 @@ import os
 import asyncio
 import io
 import traceback
+import base64
 import re
 from PIL import Image, ImageDraw, ImageFont
 from aiogram import Bot, Dispatcher, F, types
-from google import genai
-from google.genai import types as genai_types
+from groq import Groq  # Импортируем библиотеку Groq
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY") # Используем ключ Groq
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
-client = genai.Client(api_key=GEMINI_API_KEY)
+client = Groq(api_key=GROQ_API_KEY)
 
 def clean_latex(text: str) -> str:
     # Дроби вида \frac{числитель}{знаменатель} превращаем в (числитель) / (знаменатель)
@@ -91,7 +91,6 @@ def create_solution_images(text: str) -> list[io.BytesIO]:
     images_output = []
     total_pages = len(pages_lines)
 
-    # Путь к локальным шрифтам из папки fonts/
     font_path = "/app/fonts/Roboto-Regular.ttf"
     font_bold_path = "/app/fonts/Roboto-Bold.ttf"
 
@@ -135,9 +134,13 @@ def create_solution_images(text: str) -> list[io.BytesIO]:
 
     return images_output
 
+def encode_image_to_base64(image_path: str) -> str:
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode("utf-8")
+
 @dp.message(F.photo)
 async def handle_photo(message: types.Message):
-    wait_msg = await message.answer("⏳ Анализирую задачу и оформляю решение...")
+    wait_msg = await message.answer("⏳ Анализирую задачу через Groq и оформляю решение...")
     img_path = None
     try:
         photo = message.photo[-1]
@@ -145,28 +148,45 @@ async def handle_photo(message: types.Message):
         img_path = f"temp_{message.from_user.id}.jpg"
         await bot.download_file(file_info.file_path, destination=img_path)
 
-        img = Image.open(img_path)
-        
-        gen_config = genai_types.GenerateContentConfig(
-            tools=None
+        # Конвертируем картинку в base64 для Groq Vision API
+        base64_image = encode_image_to_base64(img_path)
+
+        # Запрос к быстрой модели Llama 3.2 Vision на платформе Groq
+        chat_completion = client.chat.completions.create(
+            model="llama-3.2-11b-vision-preview",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text", 
+                            "text": "Реши эту академическую задачу подробно, понятно на русском языке, используя математические знаки."
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            temperature=0.3,
+            max_tokens=1024
         )
 
-        response = client.models.generate_content(
-            model="gemini-3.6-flash",
-            contents=[img, "Реши эту академическую задачу подробно, понятно на русском языке, используя математические знаки."],
-            config=gen_config
-        )
+        response_text = chat_completion.choices[0].message.content
 
         try:
             await bot.delete_message(chat_id=message.chat.id, message_id=wait_msg.message_id)
         except:
             pass
 
-        photo_bytes_list = create_solution_images(response.text)
+        photo_bytes_list = create_solution_images(response_text)
 
         if len(photo_bytes_list) == 1:
             await message.answer_photo(
-                photo=types.BufferedInputFile(photo_bytes_List_item := photo_bytes_list[0].read(), filename="solution.png"),
+                photo=types.BufferedInputFile(photo_bytes_list[0].read(), filename="solution.png"),
                 caption="✅ Готово! Вот подробный разбор."
             )
         else:
@@ -198,7 +218,7 @@ async def handle_text(message: types.Message):
     await message.answer("📸 Отправь мне картинку с задачей!")
 
 async def main():
-    print("Бот запущен!")
+    print("Бот запущен на Groq!")
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 

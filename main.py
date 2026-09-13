@@ -47,9 +47,8 @@ def clean_latex(text: str) -> str:
     )
     return text
 
-def create_solution_image(text: str) -> io.BytesIO:
+def create_solution_images(text: str) -> list[io.BytesIO]:
     cleaned_text = clean_latex(text)
-    # Уменьшили ширину строки, чтобы текст крупным шрифтом не вылезал за края
     max_width_chars = 45
     lines = []
     for raw_line in cleaned_text.split("\n"):
@@ -58,23 +57,22 @@ def create_solution_image(text: str) -> io.BytesIO:
             raw_line = raw_line[max_width_chars:]
         lines.append(raw_line)
 
-    width = 850
-    line_height = 38  # Увеличили межстрочный интервал под крупный текст
-    header_height = 100
-    padding = 50
-    total_height = header_height + (len(lines) * line_height) + padding
-    height = max(total_height, 450)
+    if not lines:
+        lines = ["Решение пусто"]
 
-    image = Image.new("RGB", (width, height), color=(240, 242, 245))
-    draw = ImageDraw.Draw(image)
+    # Ограничение по количеству строк на одну картинку-страницу
+    lines_per_page = 22
+    pages_lines = [lines[i:i + lines_per_page] for i in range(0, len(lines), lines_per_page)]
+    
+    images_output = []
+    total_pages = len(pages_lines)
 
-    # Ищем Calibri, если нет — запасной вариант Arial или дефолтный
+    # Ищем пути к шрифтам Calibri
     font_paths = [
         "/usr/share/fonts/truetype/msttcorefonts/calibri.ttf",
         "/usr/share/fonts/truetype/msttcorefonts/arial.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
     ]
-    
     font_bold_paths = [
         "/usr/share/fonts/truetype/msttcorefonts/calibrib.ttf",
         "/usr/share/fonts/truetype/msttcorefonts/arialbd.ttf",
@@ -85,7 +83,7 @@ def create_solution_image(text: str) -> io.BytesIO:
     for path in font_paths:
         if os.path.exists(path):
             try:
-                font = ImageFont.truetype(path, 22) # Сделали шрифт крупным и четким (22 размер)
+                font = ImageFont.truetype(path, 22)
                 break
             except:
                 pass
@@ -103,20 +101,37 @@ def create_solution_image(text: str) -> io.BytesIO:
     if not title_font:
         title_font = font
 
-    draw.rectangle([(0, 0), (width, 85)], fill=(33, 150, 243))
-    draw.text((30, 25), "📝 РЕШЕНИЕ ЗАДАЧИ", fill=(255, 255, 255), font=title_font)
+    for page_idx, page_lines in enumerate(pages_lines, 1):
+        width = 850
+        line_height = 38
+        header_height = 100
+        padding = 50
+        total_height = header_height + (len(page_lines) * line_height) + padding
+        height = max(total_height, 450)
 
-    margin_x, current_y = 35, 120
-    for line in lines:
-        draw.text((margin_x, current_y), line, fill=(30, 30, 30), font=font)
-        current_y += line_height
-        if current_y > height - 50:
-            break
+        image = Image.new("RGB", (width, height), color=(240, 242, 245))
+        draw = ImageDraw.Draw(image)
 
-    output = io.BytesIO()
-    image.save(output, format="PNG")
-    output.seek(0)
-    return output
+        draw.rectangle([(0, 0), (width, 85)], fill=(33, 150, 243))
+        
+        if total_pages > 1:
+            title_text = f"📝 РЕШЕНИЕ (Часть {page_idx} из {total_pages})"
+        else:
+            title_text = "📝 РЕШЕНИЕ ЗАДАЧИ"
+            
+        draw.text((30, 25), title_text, fill=(255, 255, 255), font=title_font)
+
+        margin_x, current_y = 35, 120
+        for line in page_lines:
+            draw.text((margin_x, current_y), line, fill=(30, 30, 30), font=font)
+            current_y += line_height
+
+        output = io.BytesIO()
+        image.save(output, format="PNG")
+        output.seek(0)
+        images_output.append(output)
+
+    return images_output
 
 @dp.message(F.photo)
 async def handle_photo(message: types.Message):
@@ -139,11 +154,23 @@ async def handle_photo(message: types.Message):
         except:
             pass
 
-        photo_bytes = create_solution_image(response.text)
-        await message.answer_photo(
-            photo=types.BufferedInputFile(photo_bytes.read(), filename="solution.png"),
-            caption="✅ Готово! Вот подробный разбор."
-        )
+        photo_bytes_list = create_solution_images(response.text)
+
+        if len(photo_bytes_list) == 1:
+            await message.answer_photo(
+                photo=types.BufferedInputFile(photo_bytes_list[0].read(), filename="solution.png"),
+                caption="✅ Готово! Вот подробный разбор."
+            )
+        else:
+            media = [
+                types.InputMediaPhoto(
+                    media=types.BufferedInputFile(b.read(), filename=f"solution_{i+1}.png"),
+                    caption="✅ Готово! Вот подробный разбор (несколько страниц)." if i == 0 else ""
+                )
+                for i, b in enumerate(photo_bytes_list)
+            ]
+            await message.answer_media_group(media=media)
+
     except Exception as e:
         traceback.print_exc()
         try:

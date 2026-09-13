@@ -201,3 +201,38 @@ if __name__ == "__main__":
     import asyncio
 
     asyncio.run(main())
+    import os
+    import asyncio
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    from threading import Thread
+
+
+    # ... тут твои остальные импорты (aiogram, google-genai и т.д.)
+
+    # --- МИНИ-СЕРВЕР ДЛЯ RENDER (чтобы тариф был бесплатным) ---
+    class SimpleHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"Bot is alive!")
+
+
+    def run_server():
+        server = HTTPServer(('0.0.0.0', 10000), SimpleHandler)
+        server.serve_forever()
+
+
+    # Запускаем сервер в фоновом потоке
+    Thread(target=run_server, daemon=True).start()
+
+
+    # ------------------------------------------------------------
+
+    # Твой основной код бота (dp.start_polling и т.д.)
+    async def main():
+        # ... твой запуск бота
+        pass
+
+
+    if __name__ == "__main__":
+        asyncio.run(main())

@@ -1,6 +1,12 @@
 FROM python:3.10-slim
 WORKDIR /app
-RUN apt-get update && apt-get install -y fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y wget && \
+    mkdir -p /app/fonts && \
+    wget -O /app/fonts/DejaVuSans.ttf https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans.ttf && \
+    wget -O /app/fonts/DejaVuSans-Bold.ttf https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans-Bold.ttf && \
+    apt-get remove -y wget && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .

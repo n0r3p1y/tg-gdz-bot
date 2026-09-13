@@ -9,7 +9,7 @@ import re
 from PIL import Image, ImageDraw, ImageFont
 from aiogram import Bot, Dispatcher, F, types
 from google import genai
-from google.genai import types as genai_types # Импортируем типы для настройки
+from google.genai import types as genai_types
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -19,29 +19,53 @@ dp = Dispatcher()
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 def clean_latex(text: str) -> str:
-    text = re.sub(r'\\sqrt\{([^}]+)\}', r'корень(\1)', text)
-    text = re.sub(r'\\sqrt\s*([a-zA-Z0-9])', r'корень(\1)', text)
-    
+    # Дроби вида \frac{числитель}{знаменатель} превращаем в (числитель) / (знаменатель)
+    while r'\frac' in text:
+        text = re.sub(r'\\frac\{([^}]*)\}\{([^}]*)\}', r'(\1) / (\2)', text)
+        text = re.sub(r'\\frac\s*([a-zA-Z0-9]+)\s*([a-zA-Z0-9]+)', r'(\1) / (\2)', text)
+        break
+
+    # Корни: \sqrt{x} -> √(x)
+    text = re.sub(r'\\sqrt\{([^}]+)\}', r'√(\1)', text)
+    text = re.sub(r'\\sqrt\s*([a-zA-Z0-9])', r'√\1', text)
+
+    # Стрелки
+    text = (
+        text.replace(r"\longrightarrow", " ⟶ ")
+            .replace(r"\longleftarrow", " ⟵ ")
+            .replace(r"\rightarrow", " → ")
+            .replace(r"\leftarrow", " ← ")
+            .replace(r"\to", " → ")
+            .replace(r"\implies", " ⟹ ")
+            .replace(r"\iff", " ⟺ ")
+    )
+
+    # Остальные математические символы и очистка мусора
     text = (
         text.replace("###", "")
             .replace("**", "")
             .replace("*", "")
             .replace("#", "")
-            .replace(r"\notin", " не принадлежит ")
-            .replace(r"\in", " принадлежит ")
-            .replace(r"\rightarrow", " -> ")
-            .replace(r"\to", " -> ")
+            .replace(r"\notin", " ∉ ")
+            .replace(r"\in", " ∈ ")
             .replace(r"\approx", " ≈ ")
-            .replace(r"\le", " <= ")
-            .replace(r"\leq", " <= ")
-            .replace(r"\ge", " >= ")
-            .replace(r"\geq", " >= ")
-            .replace(r"\neq", " != ")
+            .replace(r"\le", " ≤ ")
+            .replace(r"\leq", " ≤ ")
+            .replace(r"\ge", " ≥ ")
+            .replace(r"\geq", " ≥ ")
+            .replace(r"\neq", " ≠ ")
+            .replace(r"\pm", " ± ")
+            .replace(r"\mp", " ∓ ")
+            .replace(r"\infty", " ∞ ")
+            .replace(r"\sum", " ∑ ")
+            .replace(r"\int", " ∫ ")
+            .replace(r"\partial", " ∂ ")
+            .replace(r"\emptyset", " ∅ ")
             .replace(r"\mathbf", "")
             .replace(r"\quad", "   ")
-            .replace(r"\cdot", " * ")
-            .replace(r"\times", " * ")
-            .replace(r"\div", " / ")
+            .replace(r"\cdot", " · ")
+            .replace(r"\times", " × ")
+            .replace(r"\div", " ÷ ")
             .replace(r"^\circ", "°")
             .replace(r"\text", "")
             .replace("$", "")
@@ -67,14 +91,13 @@ def create_solution_images(text: str) -> list[io.BytesIO]:
     images_output = []
     total_pages = len(pages_lines)
 
-    # Жесткий путь к скачанным шрифтам в папке /app/fonts
+    # Путь к локальным шрифтам из папки fonts/
     font_path = "/app/fonts/Roboto-Regular.ttf"
     font_bold_path = "/app/fonts/Roboto-Bold.ttf"
 
     try:
         font = ImageFont.truetype(font_path, 20)
         title_font = ImageFont.truetype(font_bold_path, 24)
-        print("Шрифты успешно загружены из /app/fonts/")
     except Exception as e:
         print(f"Ошибка загрузки шрифтов: {e}. Используем дефолт.")
         font = ImageFont.load_default()
@@ -124,19 +147,15 @@ async def handle_photo(message: types.Message):
 
         img = Image.open(img_path)
         
-        # --- ИСПРАВЛЕНИЕ ОШИБКИ AFC ---
-        # Создаем конфигурацию генерации с отключенными инструментами,
-        # чтобы модель выдавала текст, а не пыталась вызывать функции.
         gen_config = genai_types.GenerateContentConfig(
-            tools=None # Явно запрещаем автовызов функций
+            tools=None
         )
 
         response = client.models.generate_content(
             model="gemini-3.6-flash",
-            contents=[img, "Реши эту академическую задачу подробно, понятно на русском языке, используя понятные математические знаки."],
-            config=gen_config # Передаем конфиг с выключенными инструментами
+            contents=[img, "Реши эту академическую задачу подробно, понятно на русском языке, используя математические знаки."],
+            config=gen_config
         )
-        # -----------------------------
 
         try:
             await bot.delete_message(chat_id=message.chat.id, message_id=wait_msg.message_id)
@@ -147,7 +166,7 @@ async def handle_photo(message: types.Message):
 
         if len(photo_bytes_list) == 1:
             await message.answer_photo(
-                photo=types.BufferedInputFile(photo_bytes_list[0].read(), filename="solution.png"),
+                photo=types.BufferedInputFile(photo_bytes_List_item := photo_bytes_list[0].read(), filename="solution.png"),
                 caption="✅ Готово! Вот подробный разбор."
             )
         else:

@@ -204,28 +204,20 @@ if __name__ == "__main__":
     import os
     import asyncio
     from http.server import HTTPServer, BaseHTTPRequestHandler
-    from threading import Thread
+from threading import Thread
 
+class SimpleHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is alive!")
 
-    # ... тут твои остальные импорты (aiogram, google-genai и т.д.)
-
-    # --- МИНИ-СЕРВЕР ДЛЯ RENDER (чтобы тариф был бесплатным) ---
-    class SimpleHandler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(b"Bot is alive!")
-
-
-   def run_server():
-    # Вот сюда в скобки передается порт 10000
+def run_server():
     server = HTTPServer(('0.0.0.0', 10000), SimpleHandler)
     server.serve_forever()
 
-
-    # Запускаем сервер в фоновом потоке
-    Thread(target=run_server, daemon=True).start()
-
+# Запускаем сервер в фоновом потоке
+Thread(target=run_server, daemon=True).start()
 
     # ------------------------------------------------------------
 

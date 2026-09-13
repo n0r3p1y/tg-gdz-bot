@@ -153,7 +153,7 @@ async def handle_photo(message: types.Message):
 
         # Запрос к быстрой модели Llama 3.2 Vision на платформе Groq
         chat_completion = client.chat.completions.create(
-            model="llama-3.2-11b-vision-preview",
+            model="llama-3.2-11b-vision",
             messages=[
                 {
                     "role": "user",

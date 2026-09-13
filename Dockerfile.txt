@@ -1,21 +1,16 @@
 FROM python:3.10-slim
 WORKDIR /app
 
-# Устанавливаем официальный пакет шрифтов с полной поддержкой кириллицы
-RUN apt-get update && apt-get install -y fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
-CMD ["python", "-u", "main.py"]FROM python:3.10-slim
-WORKDIR /app
-
-# Устанавливаем wget и скачиваем проверенный Arial прямо в папку бота
+# Устанавливаем wget и создаем папку для шрифтов
 RUN apt-get update && apt-get install -y wget && \
-    mkdir -p /app && \
-    wget -O /app/arial.ttf https://github.com/matomo-org/travis-scripts/raw/master/fonts/Arial.ttf && \
-    wget -O /app/arialbd.ttf https://github.com/matomo-org/travis-scripts/raw/master/fonts/Arial-Bold.ttf && \
-    apt-get remove -y wget && rm -rf /var/lib/apt/lists/*
+    mkdir -p /app/fonts
+
+# Скачиваем Roboto-Regular (отличный шрифт с кириллицей) и Roboto-Bold
+RUN wget -O /app/fonts/Roboto-Regular.ttf https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Regular.ttf && \
+    wget -O /app/fonts/Roboto-Bold.ttf https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Bold.ttf
+
+# Очищаем кэш apt
+RUN apt-get remove -y wget && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

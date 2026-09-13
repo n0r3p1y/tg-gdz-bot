@@ -109,7 +109,7 @@ async def handle_photo(message: types.Message):
 
         img = Image.open(img_path)
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.6-flash",
             contents=[img, "Реши эту академическую задачу подробно, понятно на русском языке, без сложных латексных формул, используя понятные математические знаки."]
         )
 

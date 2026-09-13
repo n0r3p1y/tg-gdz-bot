@@ -67,20 +67,16 @@ def create_solution_image(text: str) -> io.BytesIO:
     image = Image.new("RGB", (width, height), color=(240, 242, 245))
     draw = ImageDraw.Draw(image)
 
-    # Ищем установленный в системе шрифт с поддержкой кириллицы
-    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-    font_bold_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    # Жестко указываем путь к скачанному в Dockerfile шрифту
+    font_path = "/app/fonts/DejaVuSans.ttf"
+    font_bold_path = "/app/fonts/DejaVuSans-Bold.ttf"
 
     try:
         font = ImageFont.truetype(font_path, 18)
         title_font = ImageFont.truetype(font_bold_path, 22)
     except:
-        try:
-            font = ImageFont.truetype("arial.ttf", 18)
-            title_font = ImageFont.truetype("arialbd.ttf", 22)
-        except:
-            font = ImageFont.load_default()
-            title_font = font
+        font = ImageFont.load_default()
+        title_font = font
 
     draw.rectangle([(0, 0), (width, 80)], fill=(33, 150, 243))
     draw.text((30, 25), "📝 РЕШЕНИЕ ЗАДАЧИ", fill=(255, 255, 255), font=title_font)

@@ -1,1 +1,14 @@
+FROM python:3.10-slim
+WORKDIR /app
 
+# Устанавливаем wget и скачиваем проверенный Arial прямо в папку бота
+RUN apt-get update && apt-get install -y wget && \
+    mkdir -p /app && \
+    wget -O /app/arial.ttf https://github.com/matomo-org/travis-scripts/raw/master/fonts/Arial.ttf && \
+    wget -O /app/arialbd.ttf https://github.com/matomo-org/travis-scripts/raw/master/fonts/Arial-Bold.ttf && \
+    apt-get remove -y wget && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+CMD ["python", "-u", "main.py"]

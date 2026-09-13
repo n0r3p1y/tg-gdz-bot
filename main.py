@@ -18,7 +18,6 @@ dp = Dispatcher()
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 def clean_latex(text: str) -> str:
-    # Заменяем основные LaTeX элементы на читаемый русский язык и символы
     text = re.sub(r'\\sqrt\{([^}]+)\}', r'корень(\1)', text)
     text = re.sub(r'\\sqrt\s*([a-zA-Z0-9])', r'корень(\1)', text)
     
@@ -68,12 +67,20 @@ def create_solution_image(text: str) -> io.BytesIO:
     image = Image.new("RGB", (width, height), color=(240, 242, 245))
     draw = ImageDraw.Draw(image)
 
+    # Ищем установленный в системе шрифт с поддержкой кириллицы
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    font_bold_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+
     try:
-        font = ImageFont.truetype("arial.ttf", 20)
-        title_font = ImageFont.truetype("arialbd.ttf", 24)
+        font = ImageFont.truetype(font_path, 18)
+        title_font = ImageFont.truetype(font_bold_path, 22)
     except:
-        font = ImageFont.load_default()
-        title_font = font
+        try:
+            font = ImageFont.truetype("arial.ttf", 18)
+            title_font = ImageFont.truetype("arialbd.ttf", 22)
+        except:
+            font = ImageFont.load_default()
+            title_font = font
 
     draw.rectangle([(0, 0), (width, 80)], fill=(33, 150, 243))
     draw.text((30, 25), "📝 РЕШЕНИЕ ЗАДАЧИ", fill=(255, 255, 255), font=title_font)
@@ -102,7 +109,7 @@ async def handle_photo(message: types.Message):
 
         img = Image.open(img_path)
         response = client.models.generate_content(
-            model="gemini-3.6-flash",
+            model="gemini-2.5-flash",
             contents=[img, "Реши эту академическую задачу подробно, понятно на русском языке, без сложных латексных формул, используя понятные математические знаки."]
         )
 

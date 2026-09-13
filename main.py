@@ -78,7 +78,8 @@ def create_solution_images(text: str) -> list[io.BytesIO]:
     if not lines:
         lines = ["Решение пусто"]
 
-    lines_per_page = 22
+    # Увеличили количество строк на странице, чтобы помещалось больше информации
+    lines_per_page = 30
     pages_lines = [lines[i:i + lines_per_page] for i in range(0, len(lines), lines_per_page)]
     
     images_output = []
@@ -111,7 +112,7 @@ def create_solution_images(text: str) -> list[io.BytesIO]:
         if total_pages > 1:
             title_text = f"📝 РЕШЕНИЕ (Часть {page_idx} из {total_pages})"
         else:
-            title_text = "📝 РЕШЕНИЕ ЗАДАЧИ"
+            title_text = f"📝 РЕШЕНИЕ ЗАДАЧИ"
             
         draw.text((30, 25), title_text, fill=(255, 255, 255), font=title_font)
 
@@ -148,14 +149,14 @@ async def handle_photo(message: types.Message):
             messages=[
                 {
                     "role": "system",
-                    "content": "Ты — полезный ИИ-помощник по учебе. Объясняй ход решения на русском языке."
+                    "content": "Ты — эксперт-репетитор по математике и точным наукам. Пиши подробный ход решения и объяснения на русском языке, доводи решение до окончательного ответа."
                 },
                 {
                     "role": "user",
                     "content": [
                         {
                             "type": "text", 
-                            "text": "Реши эту задачу подробно и понятно, написав объяснения и шаги на русском языке."
+                            "text": "Реши эту задачу полностью, расписав все шаги, выкладки и итоговый ответ на русском языке."
                         },
                         {
                             "type": "image_url",
@@ -167,7 +168,7 @@ async def handle_photo(message: types.Message):
                 }
             ],
             temperature=0.3,
-            max_tokens=1024
+            max_tokens=4096  # Увеличили лимит токенов генерации в 4 раза, чтобы решение не обрывалось
         )
 
         response_text = chat_completion.choices[0].message.content

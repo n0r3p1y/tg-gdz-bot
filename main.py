@@ -146,7 +146,7 @@ async def ask_groq_part(img_base64: str, part_name: str) -> str:
                     "content": [
                         {
                             "type": "text", 
-                            "text": f"Реши задания с этой {part_name части} изображения, расписав шаги и ответы на русском языке."
+                            "text": f"Реши задания с этой {part_name} части изображения, расписав шаги и ответы на русском языке."
                         },
                         {
                             "type": "image_url",
@@ -175,7 +175,6 @@ async def handle_photo(message: types.Message):
         img_path = f"temp_{message.from_user.id}.jpg"
         await bot.download_file(file_info.file_path, destination=img_path)
 
-        # Открываем изображение и режем на 2 части (верх и низ)
         with Image.open(img_path) as img:
             width, height = img.size
             mid = height // 2
@@ -186,13 +185,11 @@ async def handle_photo(message: types.Message):
             top_b64 = image_to_base64_bytes(top_img)
             bottom_b64 = image_to_base64_bytes(bottom_img)
 
-        # Делаем два параллельных запроса к Groq для верхней и нижней части
         text_top, text_bottom = await asyncio.gather(
             ask_groq_part(top_b64, "верхней"),
             ask_groq_part(bottom_b64, "нижней")
         )
 
-        # Объединяем результаты в один текст с разделителем
         full_response_text = f"--- ВЕРХНЯЯ ЧАСТЬ ---\n{text_top}\n\n--- НИЖНЯЯ ЧАСТЬ ---\n{text_bottom}"
 
         try:
@@ -200,7 +197,6 @@ async def handle_photo(message: types.Message):
         except:
             pass
 
-        # Генерируем страницы ответов
         photo_bytes_list = create_solution_images(full_response_text)
 
         if len(photo_bytes_list) == 1:

@@ -217,9 +217,10 @@ if __name__ == "__main__":
             self.wfile.write(b"Bot is alive!")
 
 
-    def run_server():
-        server = HTTPServer(('0.0.0.0', 10000), SimpleHandler)
-        server.serve_forever()
+   def run_server():
+    # Вот сюда в скобки передается порт 10000
+    server = HTTPServer(('0.0.0.0', 10000), SimpleHandler)
+    server.serve_forever()
 
 
     # Запускаем сервер в фоновом потоке

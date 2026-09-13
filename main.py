@@ -18,11 +18,10 @@ dp = Dispatcher()
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 def clean_latex(text: str) -> str:
-    # Заменяем квадратные корни на понятный текст
-    text = re.sub(r'\\sqrt\{([^}]+)\}', r'√(\1)', text)
-    text = re.sub(r'\\sqrt\s*([a-zA-Z0-9])', r'√\1', text)
+    # Заменяем основные LaTeX элементы на читаемый русский язык и символы
+    text = re.sub(r'\\sqrt\{([^}]+)\}', r'корень(\1)', text)
+    text = re.sub(r'\\sqrt\s*([a-zA-Z0-9])', r'корень(\1)', text)
     
-    # Расширенная очистка LaTeX и разметки
     text = (
         text.replace("###", "")
             .replace("**", "")
@@ -30,24 +29,19 @@ def clean_latex(text: str) -> str:
             .replace("#", "")
             .replace(r"\notin", " не принадлежит ")
             .replace(r"\in", " принадлежит ")
-            .replace(r"\rightarrow", "→")
-            .replace(r"\to", "→")
-            .replace(r"\sqrt", "√")
-            .replace(r"\approx", "≈")
-            .replace(r"\le", "≤")
-            .replace(r"\leq", "≤")
+            .replace(r"\rightarrow", " -> ")
+            .replace(r"\to", " -> ")
+            .replace(r"\approx", " ≈ ")
+            .replace(r"\le", " <= ")
+            .replace(r"\leq", " <= ")
+            .replace(r"\ge", " >= ")
+            .replace(r"\geq", " >= ")
+            .replace(r"\neq", " != ")
             .replace(r"\mathbf", "")
-            .replace(r"\quad", "    ")
-            .replace(r"\left(", "(")
-            .replace(r"\right)", ")")
-            .replace(r"\left[", "[")
-            .replace(r"\right]", "]")
-            .replace(r"\left\{", "{")
-            .replace(r"\right\}", "}")
-            .replace(r"\frac", "")
-            .replace(r"{", "(")
-            .replace(r"}", ")")
-            .replace(r"\cdot", "·")
+            .replace(r"\quad", "   ")
+            .replace(r"\cdot", " * ")
+            .replace(r"\times", " * ")
+            .replace(r"\div", " / ")
             .replace(r"^\circ", "°")
             .replace(r"\text", "")
             .replace("$", "")
@@ -56,7 +50,7 @@ def clean_latex(text: str) -> str:
 
 def create_solution_image(text: str) -> io.BytesIO:
     cleaned_text = clean_latex(text)
-    max_width_chars = 60
+    max_width_chars = 55
     lines = []
     for raw_line in cleaned_text.split("\n"):
         while len(raw_line) > max_width_chars:
@@ -65,7 +59,7 @@ def create_solution_image(text: str) -> io.BytesIO:
         lines.append(raw_line)
 
     width = 800
-    line_height = 30
+    line_height = 32
     header_height = 90
     padding = 40
     total_height = header_height + (len(lines) * line_height) + padding
@@ -109,7 +103,7 @@ async def handle_photo(message: types.Message):
         img = Image.open(img_path)
         response = client.models.generate_content(
             model="gemini-3.6-flash",
-            contents=[img, "Реши эту академическую задачу подробно, понятно и структурировано."]
+            contents=[img, "Реши эту академическую задачу подробно, понятно на русском языке, без сложных латексных формул, используя понятные математические знаки."]
         )
 
         try:

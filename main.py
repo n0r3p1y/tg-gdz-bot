@@ -9,6 +9,7 @@ import re
 from PIL import Image, ImageDraw, ImageFont
 from aiogram import Bot, Dispatcher, F, types
 from google import genai
+from google.genai import types as genai_types # Импортируем типы для настройки
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -66,11 +67,18 @@ def create_solution_images(text: str) -> list[io.BytesIO]:
     images_output = []
     total_pages = len(pages_lines)
 
-    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-    font_bold_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    # Жесткий путь к скачанным шрифтам в папке /app/fonts
+    font_path = "/app/fonts/Roboto-Regular.ttf"
+    font_bold_path = "/app/fonts/Roboto-Bold.ttf"
 
-    font = ImageFont.truetype(font_path, 20)
-    title_font = ImageFont.truetype(font_bold_path, 24)
+    try:
+        font = ImageFont.truetype(font_path, 20)
+        title_font = ImageFont.truetype(font_bold_path, 24)
+        print("Шрифты успешно загружены из /app/fonts/")
+    except Exception as e:
+        print(f"Ошибка загрузки шрифтов: {e}. Используем дефолт.")
+        font = ImageFont.load_default()
+        title_font = font
 
     for page_idx, page_lines in enumerate(pages_lines, 1):
         width = 850
@@ -115,10 +123,20 @@ async def handle_photo(message: types.Message):
         await bot.download_file(file_info.file_path, destination=img_path)
 
         img = Image.open(img_path)
+        
+        # --- ИСПРАВЛЕНИЕ ОШИБКИ AFC ---
+        # Создаем конфигурацию генерации с отключенными инструментами,
+        # чтобы модель выдавала текст, а не пыталась вызывать функции.
+        gen_config = genai_types.GenerateContentConfig(
+            tools=None # Явно запрещаем автовызов функций
+        )
+
         response = client.models.generate_content(
             model="gemini-3.6-flash",
-            contents=[img, "Реши эту академическую задачу подробно, понятно на русском языке, без сложных латексных формул, используя понятные математические знаки."]
+            contents=[img, "Реши эту академическую задачу подробно, понятно на русском языке, используя понятные математические знаки."],
+            config=gen_config # Передаем конфиг с выключенными инструментами
         )
+        # -----------------------------
 
         try:
             await bot.delete_message(chat_id=message.chat.id, message_id=wait_msg.message_id)
@@ -148,7 +166,7 @@ async def handle_photo(message: types.Message):
             await bot.delete_message(chat_id=message.chat.id, message_id=wait_msg.message_id)
         except:
             pass
-        await message.answer("❌ Произошла ошибка при генерации.")
+        await message.answer(f"❌ Произошла ошибка при генерации: {e}")
     finally:
         if img_path and os.path.exists(img_path):
             try:

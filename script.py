@@ -6,7 +6,7 @@ from google import genai
 from PIL import Image, ImageDraw, ImageFont
 import io
 
-TELEGRAM_TOKEN = "8547033865:AAGwsj1l2veNYbFIyFV8DTibbmI5uXCfs_c"
+TELEGRAM_TOKEN = "8547033865:AAH4z-uCcqcFlZv45OIxKLjsS2Qj6FAjofw"
 
 bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher()

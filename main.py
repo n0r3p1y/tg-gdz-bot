@@ -9,10 +9,10 @@ import base64
 import re
 from PIL import Image, ImageDraw, ImageFont
 from aiogram import Bot, Dispatcher, F, types
-from groq import Groq  # Импортируем библиотеку Groq
+from groq import Groq
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY") # Используем ключ Groq
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
@@ -148,12 +148,11 @@ async def handle_photo(message: types.Message):
         img_path = f"temp_{message.from_user.id}.jpg"
         await bot.download_file(file_info.file_path, destination=img_path)
 
-        # Конвертируем картинку в base64 для Groq Vision API
         base64_image = encode_image_to_base64(img_path)
 
-        # Запрос к быстрой модели Llama 3.2 Vision на платформе Groq
+        # Запрос к актуальной модели на Groq
         chat_completion = client.chat.completions.create(
-            model="llama-3.2-11b-vision",
+            model="qwen/qwen3.6-27b",
             messages=[
                 {
                     "role": "user",

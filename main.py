@@ -5,6 +5,7 @@ import os
 import asyncio
 import io
 import traceback
+import re
 from PIL import Image, ImageDraw, ImageFont
 from aiogram import Bot, Dispatcher, F, types
 from google import genai
@@ -16,10 +17,48 @@ bot = Bot(token=TOKEN)
 dp = Dispatcher()
 client = genai.Client(api_key=GEMINI_API_KEY)
 
+def clean_latex(text: str) -> str:
+    # Заменяем квадратные корни на понятный текст
+    text = re.sub(r'\\sqrt\{([^}]+)\}', r'√(\1)', text)
+    text = re.sub(r'\\sqrt\s*([a-zA-Z0-9])', r'√\1', text)
+    
+    # Расширенная очистка LaTeX и разметки
+    text = (
+        text.replace("###", "")
+            .replace("**", "")
+            .replace("*", "")
+            .replace("#", "")
+            .replace(r"\notin", " не принадлежит ")
+            .replace(r"\in", " принадлежит ")
+            .replace(r"\rightarrow", "→")
+            .replace(r"\to", "→")
+            .replace(r"\sqrt", "√")
+            .replace(r"\approx", "≈")
+            .replace(r"\le", "≤")
+            .replace(r"\leq", "≤")
+            .replace(r"\mathbf", "")
+            .replace(r"\quad", "    ")
+            .replace(r"\left(", "(")
+            .replace(r"\right)", ")")
+            .replace(r"\left[", "[")
+            .replace(r"\right]", "]")
+            .replace(r"\left\{", "{")
+            .replace(r"\right\}", "}")
+            .replace(r"\frac", "")
+            .replace(r"{", "(")
+            .replace(r"}", ")")
+            .replace(r"\cdot", "·")
+            .replace(r"^\circ", "°")
+            .replace(r"\text", "")
+            .replace("$", "")
+    )
+    return text
+
 def create_solution_image(text: str) -> io.BytesIO:
-    max_width_chars = 65
+    cleaned_text = clean_latex(text)
+    max_width_chars = 60
     lines = []
-    for raw_line in text.split("\n"):
+    for raw_line in cleaned_text.split("\n"):
         while len(raw_line) > max_width_chars:
             lines.append(raw_line[:max_width_chars])
             raw_line = raw_line[max_width_chars:]
@@ -69,7 +108,7 @@ async def handle_photo(message: types.Message):
 
         img = Image.open(img_path)
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.6-flash",
             contents=[img, "Реши эту академическую задачу подробно, понятно и структурировано."]
         )
 

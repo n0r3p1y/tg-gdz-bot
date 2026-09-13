@@ -78,7 +78,6 @@ def create_solution_images(text: str) -> list[io.BytesIO]:
     if not lines:
         lines = ["Решение пусто"]
 
-    # Увеличили количество строк на странице, чтобы помещалось больше информации
     lines_per_page = 30
     pages_lines = [lines[i:i + lines_per_page] for i in range(0, len(lines), lines_per_page)]
     
@@ -149,14 +148,14 @@ async def handle_photo(message: types.Message):
             messages=[
                 {
                     "role": "system",
-                    "content": "Ты — эксперт-репетитор по математике и точным наукам. Пиши подробный ход решения и объяснения на русском языке, доводи решение до окончательного ответа."
+                    "content": "Ты — эксперт-репетитор по математике. Пиши понятный ход решения на русском языке компактно, чтобы укладываться в лимиты."
                 },
                 {
                     "role": "user",
                     "content": [
                         {
                             "type": "text", 
-                            "text": "Реши эту задачу полностью, расписав все шаги, выкладки и итоговый ответ на русском языке."
+                            "text": "Реши эту задачу, расписав ключевые шаги и итоговый ответ на русском языке."
                         },
                         {
                             "type": "image_url",
@@ -168,7 +167,7 @@ async def handle_photo(message: types.Message):
                 }
             ],
             temperature=0.3,
-            max_tokens=4096  # Увеличили лимит токенов генерации в 4 раза, чтобы решение не обрывалось
+            max_tokens=950  # Снизили обратно до допустимого лимита Groq (в пределах 1000)
         )
 
         response_text = chat_completion.choices[0].message.content
@@ -220,3 +219,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+    

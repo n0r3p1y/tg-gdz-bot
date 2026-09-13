@@ -19,17 +19,14 @@ dp = Dispatcher()
 client = Groq(api_key=GROQ_API_KEY)
 
 def clean_latex(text: str) -> str:
-    # Дроби вида \frac{числитель}{знаменатель} превращаем в (числитель) / (знаменатель)
     while r'\frac' in text:
         text = re.sub(r'\\frac\{([^}]*)\}\{([^}]*)\}', r'(\1) / (\2)', text)
         text = re.sub(r'\\frac\s*([a-zA-Z0-9]+)\s*([a-zA-Z0-9]+)', r'(\1) / (\2)', text)
         break
 
-    # Корни: \sqrt{x} -> √(x)
     text = re.sub(r'\\sqrt\{([^}]+)\}', r'√(\1)', text)
     text = re.sub(r'\\sqrt\s*([a-zA-Z0-9])', r'√\1', text)
 
-    # Стрелки
     text = (
         text.replace(r"\longrightarrow", " ⟶ ")
             .replace(r"\longleftarrow", " ⟵ ")
@@ -38,11 +35,7 @@ def clean_latex(text: str) -> str:
             .replace(r"\to", " → ")
             .replace(r"\implies", " ⟹ ")
             .replace(r"\iff", " ⟺ ")
-    )
-
-    # Остальные математические символы и очистка мусора
-    text = (
-        text.replace("###", "")
+            .replace("###", "")
             .replace("**", "")
             .replace("*", "")
             .replace("#", "")
@@ -98,7 +91,7 @@ def create_solution_images(text: str) -> list[io.BytesIO]:
         font = ImageFont.truetype(font_path, 20)
         title_font = ImageFont.truetype(font_bold_path, 24)
     except Exception as e:
-        print(f"Ошибка загрузки шрифтов: {e}. Используем дефолт.")
+        print(f"Ошибка загрузки шрифтов: {e}. Используем стандартный шрифт.")
         font = ImageFont.load_default()
         title_font = font
 
@@ -140,7 +133,7 @@ def encode_image_to_base64(image_path: str) -> str:
 
 @dp.message(F.photo)
 async def handle_photo(message: types.Message):
-    wait_msg = await message.answer("⏳ Анализирую задачу через Groq и оформляю решение...")
+    wait_msg = await message.answer("⏳ Анализирую задачу через Groq и оформляю подробное решение...")
     img_path = None
     try:
         photo = message.photo[-1]
@@ -150,16 +143,19 @@ async def handle_photo(message: types.Message):
 
         base64_image = encode_image_to_base64(img_path)
 
-        # Запрос к актуальной модели на Groq
         chat_completion = client.chat.completions.create(
             model="qwen/qwen3.6-27b",
             messages=[
+                {
+                    "role": "system",
+                    "content": "Ты — полезный ИИ-помощник по учебе. Объясняй ход решения на русском языке."
+                },
                 {
                     "role": "user",
                     "content": [
                         {
                             "type": "text", 
-                            "text": "Реши эту академическую задачу подробно, понятно на русском языке, используя математические знаки."
+                            "text": "Реши эту задачу подробно и понятно, написав объяснения и шаги на русском языке."
                         },
                         {
                             "type": "image_url",
@@ -186,7 +182,7 @@ async def handle_photo(message: types.Message):
         if len(photo_bytes_list) == 1:
             await message.answer_photo(
                 photo=types.BufferedInputFile(photo_bytes_list[0].read(), filename="solution.png"),
-                caption="✅ Готово! Вот подробный разбор."
+                caption="✅ Готово! Вот подробный разбор задачи."
             )
         else:
             media = [
@@ -204,7 +200,7 @@ async def handle_photo(message: types.Message):
             await bot.delete_message(chat_id=message.chat.id, message_id=wait_msg.message_id)
         except:
             pass
-        await message.answer(f"❌ Произошла ошибка при генерации: {e}")
+        await message.answer(f"❌ Произошла ошибка при генерации решения: {e}")
     finally:
         if img_path and os.path.exists(img_path):
             try:
@@ -214,10 +210,10 @@ async def handle_photo(message: types.Message):
 
 @dp.message(F.text)
 async def handle_text(message: types.Message):
-    await message.answer("📸 Отправь мне картинку с задачей!")
+    await message.answer("📸 Пожалуйста, отправь мне картинку с задачей!")
 
 async def main():
-    print("Бот запущен на Groq!")
+    print("Бот успешно запущен на базе Groq и готов к работе!")
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 

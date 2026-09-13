@@ -228,6 +228,10 @@ async def main():
         # ... твой запуск бота
 pass
 
+async def main():
+    # здесь отступ в 4 пробела обязателен
+    await dp.start_polling(bot)
 
-    if __name__ == "__main__":
-        asyncio.run(main())
+if __name__ == "__main__":
+    # эта строчка должна начинаться строго от левого края (без пробелов слева!)
+    asyncio.run(main())

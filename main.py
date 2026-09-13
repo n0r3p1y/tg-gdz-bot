@@ -127,13 +127,47 @@ def create_solution_images(text: str) -> list[io.BytesIO]:
 
     return images_output
 
-def encode_image_to_base64(image_path: str) -> str:
-    with open(image_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode("utf-8")
+def image_to_base64_bytes(img_obj) -> str:
+    buffered = io.BytesIO()
+    img_obj.save(buffered, format="JPEG")
+    return base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+async def ask_groq_part(img_base64: str, part_name: str) -> str:
+    try:
+        chat_completion = client.chat.completions.create(
+            model="qwen/qwen3.6-27b",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Ты — эксперт-репетитор. Реши задания, изображенные на этой части картинки. Пиши подробно и понятно на русском языке."
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text", 
+                            "text": f"Реши задания с этой {part_name части} изображения, расписав шаги и ответы на русском языке."
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{img_base64}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            temperature=0.3,
+            max_tokens=900
+        )
+        return chat_completion.choices[0].message.content
+    except Exception as e:
+        print(f"Ошибка запроса к Groq ({part_name}): {e}")
+        return f"Ошибка при обработке {part_name} части."
 
 @dp.message(F.photo)
 async def handle_photo(message: types.Message):
-    wait_msg = await message.answer("⏳ Анализирую задачи и оформляю решения...")
+    wait_msg = await message.answer("⏳ Разрезаю фото на части и параллельно решаю все задания...")
     img_path = None
     try:
         photo = message.photo[-1]
@@ -141,54 +175,44 @@ async def handle_photo(message: types.Message):
         img_path = f"temp_{message.from_user.id}.jpg"
         await bot.download_file(file_info.file_path, destination=img_path)
 
-        base64_image = encode_image_to_base64(img_path)
+        # Открываем изображение и режем на 2 части (верх и низ)
+        with Image.open(img_path) as img:
+            width, height = img.size
+            mid = height // 2
+            
+            top_img = img.crop((0, 0, width, mid))
+            bottom_img = img.crop((0, mid, width, height))
 
-        chat_completion = client.chat.completions.create(
-            model="qwen/qwen3.6-27b",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Ты — эксперт-репетитор. Если на изображении несколько заданий, ты обязан решить их ВСЕ. Пиши решения компактно, по делу, на русском языке, чтобы они гарантированно уместились в один ответ без обрывов."
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text", 
-                            "text": "Найди все задания на этой картинке и реши каждое из них (кратко, но понятно, с ответами) на русском языке."
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{base64_image}"
-                            }
-                        }
-                    ]
-                }
-            ],
-            temperature=0.3,
-            max_tokens=950
+            top_b64 = image_to_base64_bytes(top_img)
+            bottom_b64 = image_to_base64_bytes(bottom_img)
+
+        # Делаем два параллельных запроса к Groq для верхней и нижней части
+        text_top, text_bottom = await asyncio.gather(
+            ask_groq_part(top_b64, "верхней"),
+            ask_groq_part(bottom_b64, "нижней")
         )
 
-        response_text = chat_completion.choices[0].message.content
+        # Объединяем результаты в один текст с разделителем
+        full_response_text = f"--- ВЕРХНЯЯ ЧАСТЬ ---\n{text_top}\n\n--- НИЖНЯЯ ЧАСТЬ ---\n{text_bottom}"
 
         try:
             await bot.delete_message(chat_id=message.chat.id, message_id=wait_msg.message_id)
         except:
             pass
 
-        photo_bytes_list = create_solution_images(response_text)
+        # Генерируем страницы ответов
+        photo_bytes_list = create_solution_images(full_response_text)
 
         if len(photo_bytes_list) == 1:
             await message.answer_photo(
                 photo=types.BufferedInputFile(photo_bytes_list[0].read(), filename="solution.png"),
-                caption="✅ Готово! Вот разбор всех заданий."
+                caption="✅ Готово! Вот полный разбор всех заданий."
             )
         else:
             media = [
                 types.InputMediaPhoto(
                     media=types.BufferedInputFile(b.read(), filename=f"solution_{i+1}.png"),
-                    caption="✅ Готово! Вот подробный разбор (несколько страниц)." if i == 0 else ""
+                    caption="✅ Готово! Вот полный разбор всех заданий (несколько страниц)." if i == 0 else ""
                 )
                 for i, b in enumerate(photo_bytes_list)
             ]
@@ -213,7 +237,7 @@ async def handle_text(message: types.Message):
     await message.answer("📸 Пожалуйста, отправь мне картинку с задачей!")
 
 async def main():
-    print("Бот успешно запущен на базе Groq и готов к работе!")
+    print("Бот успешно запущен на базе Groq с автонарезкой фото!")
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 

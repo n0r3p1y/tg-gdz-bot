@@ -203,7 +203,7 @@ if __name__ == "__main__":
     asyncio.run(main())
     import os
     import asyncio
-    from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
 
 class SimpleHandler(BaseHTTPRequestHandler):
@@ -216,7 +216,7 @@ def run_server():
     server = HTTPServer(('0.0.0.0', 10000), SimpleHandler)
     server.serve_forever()
 
-# Запускаем сервер в фоновом потоке
+# Этот поток должен запускаться ДО бесконечного опроса Telegram
 Thread(target=run_server, daemon=True).start()
 
     # ------------------------------------------------------------

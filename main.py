@@ -49,7 +49,8 @@ def clean_latex(text: str) -> str:
 
 def create_solution_image(text: str) -> io.BytesIO:
     cleaned_text = clean_latex(text)
-    max_width_chars = 55
+    # Уменьшили ширину строки, чтобы текст крупным шрифтом не вылезал за края
+    max_width_chars = 45
     lines = []
     for raw_line in cleaned_text.split("\n"):
         while len(raw_line) > max_width_chars:
@@ -57,31 +58,55 @@ def create_solution_image(text: str) -> io.BytesIO:
             raw_line = raw_line[max_width_chars:]
         lines.append(raw_line)
 
-    width = 800
-    line_height = 32
-    header_height = 90
-    padding = 40
+    width = 850
+    line_height = 38  # Увеличили межстрочный интервал под крупный текст
+    header_height = 100
+    padding = 50
     total_height = header_height + (len(lines) * line_height) + padding
-    height = max(total_height, 400)
+    height = max(total_height, 450)
 
     image = Image.new("RGB", (width, height), color=(240, 242, 245))
     draw = ImageDraw.Draw(image)
 
-    # Жестко указываем путь к скачанному в Dockerfile шрифту
-    font_path = "/app/fonts/DejaVuSans.ttf"
-    font_bold_path = "/app/fonts/DejaVuSans-Bold.ttf"
+    # Ищем Calibri, если нет — запасной вариант Arial или дефолтный
+    font_paths = [
+        "/usr/share/fonts/truetype/msttcorefonts/calibri.ttf",
+        "/usr/share/fonts/truetype/msttcorefonts/arial.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    ]
+    
+    font_bold_paths = [
+        "/usr/share/fonts/truetype/msttcorefonts/calibrib.ttf",
+        "/usr/share/fonts/truetype/msttcorefonts/arialbd.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    ]
 
-    try:
-        font = ImageFont.truetype(font_path, 18)
-        title_font = ImageFont.truetype(font_bold_path, 22)
-    except:
+    font, title_font = None, None
+    for path in font_paths:
+        if os.path.exists(path):
+            try:
+                font = ImageFont.truetype(path, 22) # Сделали шрифт крупным и четким (22 размер)
+                break
+            except:
+                pass
+
+    for path in font_bold_paths:
+        if os.path.exists(path):
+            try:
+                title_font = ImageFont.truetype(path, 26)
+                break
+            except:
+                pass
+
+    if not font:
         font = ImageFont.load_default()
+    if not title_font:
         title_font = font
 
-    draw.rectangle([(0, 0), (width, 80)], fill=(33, 150, 243))
+    draw.rectangle([(0, 0), (width, 85)], fill=(33, 150, 243))
     draw.text((30, 25), "📝 РЕШЕНИЕ ЗАДАЧИ", fill=(255, 255, 255), font=title_font)
 
-    margin_x, current_y = 30, 110
+    margin_x, current_y = 35, 120
     for line in lines:
         draw.text((margin_x, current_y), line, fill=(30, 30, 30), font=font)
         current_y += line_height

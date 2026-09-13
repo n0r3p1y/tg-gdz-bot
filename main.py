@@ -111,7 +111,7 @@ def create_solution_images(text: str) -> list[io.BytesIO]:
         if total_pages > 1:
             title_text = f"📝 РЕШЕНИЕ (Часть {page_idx} из {total_pages})"
         else:
-            title_text = f"📝 РЕШЕНИЕ ЗАДАЧИ"
+            title_text = f"📝 РЕШЕНИЕ ЗАДАЧ"
             
         draw.text((30, 25), title_text, fill=(255, 255, 255), font=title_font)
 
@@ -133,7 +133,7 @@ def encode_image_to_base64(image_path: str) -> str:
 
 @dp.message(F.photo)
 async def handle_photo(message: types.Message):
-    wait_msg = await message.answer("⏳ Анализирую задачу через Groq и оформляю подробное решение...")
+    wait_msg = await message.answer("⏳ Анализирую задачи и оформляю решения...")
     img_path = None
     try:
         photo = message.photo[-1]
@@ -148,14 +148,14 @@ async def handle_photo(message: types.Message):
             messages=[
                 {
                     "role": "system",
-                    "content": "Ты — эксперт-репетитор по математике. Пиши понятный ход решения на русском языке компактно, чтобы укладываться в лимиты."
+                    "content": "Ты — эксперт-репетитор. Если на изображении несколько заданий, ты обязан решить их ВСЕ. Пиши решения компактно, по делу, на русском языке, чтобы они гарантированно уместились в один ответ без обрывов."
                 },
                 {
                     "role": "user",
                     "content": [
                         {
                             "type": "text", 
-                            "text": "Реши эту задачу, расписав ключевые шаги и итоговый ответ на русском языке."
+                            "text": "Найди все задания на этой картинке и реши каждое из них (кратко, но понятно, с ответами) на русском языке."
                         },
                         {
                             "type": "image_url",
@@ -167,7 +167,7 @@ async def handle_photo(message: types.Message):
                 }
             ],
             temperature=0.3,
-            max_tokens=950  # Снизили обратно до допустимого лимита Groq (в пределах 1000)
+            max_tokens=950
         )
 
         response_text = chat_completion.choices[0].message.content
@@ -182,7 +182,7 @@ async def handle_photo(message: types.Message):
         if len(photo_bytes_list) == 1:
             await message.answer_photo(
                 photo=types.BufferedInputFile(photo_bytes_list[0].read(), filename="solution.png"),
-                caption="✅ Готово! Вот подробный разбор задачи."
+                caption="✅ Готово! Вот разбор всех заданий."
             )
         else:
             media = [
@@ -219,4 +219,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-    

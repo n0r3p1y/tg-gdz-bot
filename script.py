@@ -226,7 +226,7 @@ async def main():
     # весь код внутри функции сдвинут внутрь на 4 пробела
     await dp.start_polling(bot)
         # ... твой запуск бота
-        pass
+pass
 
 
     if __name__ == "__main__":

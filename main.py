@@ -67,7 +67,7 @@ def clean_latex(text: str) -> str:
 
 def create_solution_images(text: str) -> list[io.BytesIO]:
     cleaned_text = clean_latex(text)
-    max_width_chars = 45
+    max_width_chars = 50  # Увеличили ширину строки для компактности
     lines = []
     for raw_line in cleaned_text.split("\n"):
         while len(raw_line) > max_width_chars:
@@ -78,7 +78,7 @@ def create_solution_images(text: str) -> list[io.BytesIO]:
     if not lines:
         lines = ["Решение пусто"]
 
-    lines_per_page = 30
+    lines_per_page = 35  # Увеличили количество строк на страницу
     pages_lines = [lines[i:i + lines_per_page] for i in range(0, len(lines), lines_per_page)]
     
     images_output = []
@@ -88,8 +88,8 @@ def create_solution_images(text: str) -> list[io.BytesIO]:
     font_bold_path = "/app/fonts/Roboto-Bold.ttf"
 
     try:
-        font = ImageFont.truetype(font_path, 20)
-        title_font = ImageFont.truetype(font_bold_path, 24)
+        font = ImageFont.truetype(font_path, 18)  # Чуть компактнее шрифт
+        title_font = ImageFont.truetype(font_bold_path, 22)
     except Exception as e:
         print(f"Ошибка загрузки шрифтов: {e}. Используем стандартный шрифт.")
         font = ImageFont.load_default()
@@ -97,25 +97,25 @@ def create_solution_images(text: str) -> list[io.BytesIO]:
 
     for page_idx, page_lines in enumerate(pages_lines, 1):
         width = 850
-        line_height = 36
-        header_height = 90
-        padding = 45
+        line_height = 32  # Межстрочный интервал чуть плотнее
+        header_height = 80
+        padding = 40
         total_height = header_height + (len(page_lines) * line_height) + padding
-        height = max(total_height, 450)
+        height = max(total_height, 400)
 
         image = Image.new("RGB", (width, height), color=(240, 242, 245))
         draw = ImageDraw.Draw(image)
 
-        draw.rectangle([(0, 0), (width, 80)], fill=(33, 150, 243))
+        draw.rectangle([(0, 0), (width, 70)], fill=(33, 150, 243))
         
         if total_pages > 1:
             title_text = f"📝 РЕШЕНИЕ (Часть {page_idx} из {total_pages})"
         else:
             title_text = f"📝 РЕШЕНИЕ ЗАДАЧ"
             
-        draw.text((30, 25), title_text, fill=(255, 255, 255), font=title_font)
+        draw.text((30, 20), title_text, fill=(255, 255, 255), font=title_font)
 
-        margin_x, current_y = 35, 110
+        margin_x, current_y = 30, 95
         for line in page_lines:
             draw.text((margin_x, current_y), line, fill=(30, 30, 30), font=font)
             current_y += line_height
@@ -133,7 +133,7 @@ def encode_image_to_base64(image_path: str) -> str:
 
 @dp.message(F.photo)
 async def handle_photo(message: types.Message):
-    wait_msg = await message.answer("⏳ Анализирую задачи и составляю компактный разбор...")
+    wait_msg = await message.answer("⏳ Составляю сверхкраткий разбор...")
     img_path = None
     try:
         photo = message.photo[-1]
@@ -148,14 +148,14 @@ async def handle_photo(message: types.Message):
             messages=[
                 {
                     "role": "system",
-                    "content": "Ты — эксперт-репетитор. ОТВЕЧАЙ ИСКЛЮЧИТЕЛЬНО НА РУССКОМ ЯЗЫКЕ. На картинке может быть много заданий (до 10 штук). Ты обязан дать решение КАЖДОГО задания. Пиши максимально компактно, без «воды», используя ключевые шаги и итоговые ответы, чтобы вся информация гарантированно поместилась в лимит одного ответа."
+                    "content": "Ты — строгий репетитор. ОТВЕЧАЙ ТОЛЬКО ПО-РУССКИ. На картинке много заданий (до 10). Реши КАЖДОЕ максимально ультра-кратко: номер, 1 строка сути и ответ. Никакой лишней воды, чтобы всё гарантированно влезло в лимит токенов."
                 },
                 {
                     "role": "user",
                     "content": [
                         {
                             "type": "text", 
-                            "text": "Найди все задания на этой картинке и запиши краткое, но понятное решение для каждого из них строго на русском языке."
+                            "text": "Реши все задания с этой картинки ультра-кратко, строго по-русски."
                         },
                         {
                             "type": "image_url",
@@ -166,7 +166,7 @@ async def handle_photo(message: types.Message):
                     ]
                 }
             ],
-            temperature=0.3,
+            temperature=0.2,
             max_tokens=950
         )
 
@@ -182,13 +182,13 @@ async def handle_photo(message: types.Message):
         if len(photo_bytes_list) == 1:
             await message.answer_photo(
                 photo=types.BufferedInputFile(photo_bytes_list[0].read(), filename="solution.png"),
-                caption="✅ Готово! Вот краткий и полный разбор всех заданий."
+                caption="✅ Готово! Ультра-краткий разбор всех заданий."
             )
         else:
             media = [
                 types.InputMediaPhoto(
                     media=types.BufferedInputFile(b.read(), filename=f"solution_{i+1}.png"),
-                    caption="✅ Готово! Вот разбор всех заданий (несколько страниц)." if i == 0 else ""
+                    caption="✅ Готово! Разбор всех заданий (несколько страниц)." if i == 0 else ""
                 )
                 for i, b in enumerate(photo_bytes_list)
             ]
@@ -213,7 +213,7 @@ async def handle_text(message: types.Message):
     await message.answer("📸 Пожалуйста, отправь мне картинку с задачей!")
 
 async def main():
-    print("Бот успешно запущен на базе Groq с принудительным русским языком!")
+    print("Бот успешно запущен на базе Groq в ультра-кратком режиме!")
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
